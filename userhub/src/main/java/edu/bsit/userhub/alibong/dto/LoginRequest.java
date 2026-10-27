@@ -1,5 +1,5 @@
 package edu.bsit.userhub.alibong.dto;
 
-public class LoginRequest {
+public record LoginRequest (String email, String password) {
     
 }
