@@ -7,13 +7,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import jakarta.security.auth.message.AuthException;
-
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    
     @ExceptionHandler(AuthException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-
     public Map<String, String> auth(AuthException e) {
         return Map.of("error", e.getMessage());
     }

@@ -16,9 +16,10 @@ import edu.bsit.userhub.alibong.dto.LoginRequest;
 import edu.bsit.userhub.alibong.dto.LoginResponse;
 import edu.bsit.userhub.alibong.dto.RegisterRequest;
 import edu.bsit.userhub.alibong.dto.UserResponse;
+import edu.bsit.userhub.alibong.exception.AuthException;
+import edu.bsit.userhub.alibong.exception.ForbiddenException;
 import edu.bsit.userhub.alibong.model.User;
 import edu.bsit.userhub.alibong.repository.UserRepository;
-import jakarta.security.auth.message.AuthException;
 
 @Service
 public class UserService {
