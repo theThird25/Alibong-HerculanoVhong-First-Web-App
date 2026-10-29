@@ -9,31 +9,25 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import jakarta.security.auth.message.AuthException;
 
-@RestControllerAdvice 
+@RestControllerAdvice
 public class ApiExceptionHandler {
-    @ExceptionHandler 
-    (AuthException.class)
-    @ResponseStatus 
-    (HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(AuthException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
 
     public Map<String, String> auth(AuthException e) {
         return Map.of("error", e.getMessage());
     }
 
-    @ExceptionHandler 
-    (ForbiddenException.class)
-    @ResponseStatus 
-    (HttpStatus.FORBIDDEN)
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
     public Map<String, String> denied(ForbiddenException e) {
         return Map.of("error", e.getMessage());
     }
 
-    @ExceptionHandler
-    (IllegalArgumentException.class)
-    @ResponseStatus 
-    (HttpStatus.CONFLICT)
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> bad(IllegalArgumentException e) {
         return Map.of("error", e.getMessage());
     }
-    
+
 }
