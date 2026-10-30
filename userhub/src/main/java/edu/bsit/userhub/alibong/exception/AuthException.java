@@ -1,7 +1,13 @@
 package edu.bsit.userhub.alibong.exception;
 
-public class AuthException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class AuthException extends ApiException {
     public AuthException(String message) {
-        super(message);
+        super(HttpStatus.UNAUTHORIZED, message);
+        {
+
+        }
     }
+
 }

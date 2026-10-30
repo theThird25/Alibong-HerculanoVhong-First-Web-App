@@ -2,14 +2,15 @@ package edu.bsit.userhub.alibong.exception;
 
 import java.util.Map;
 
+import org.hibernate.exception.AuthException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
-public class ApiExceptionHandler {
-    
+public abstract class ApiExceptionHandler extends RuntimeException {
+
     @ExceptionHandler(AuthException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public Map<String, String> auth(AuthException e) {
