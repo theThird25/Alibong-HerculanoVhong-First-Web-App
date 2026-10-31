@@ -1,13 +1,6 @@
 package edu.bsit.userhub.alibong.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
@@ -15,76 +8,108 @@ import edu.bsit.userhub.alibong.dto.DashboardResponse;
 import edu.bsit.userhub.alibong.dto.LoginRequest;
 import edu.bsit.userhub.alibong.dto.LoginResponse;
 import edu.bsit.userhub.alibong.dto.RegisterRequest;
+import edu.bsit.userhub.alibong.dto.UpdateProfileRequest;
 import edu.bsit.userhub.alibong.dto.UserResponse;
 import edu.bsit.userhub.alibong.exception.AuthException;
+import edu.bsit.userhub.alibong.exception.ConflictException;
 import edu.bsit.userhub.alibong.exception.ForbiddenException;
+import edu.bsit.userhub.alibong.model.Role;
 import edu.bsit.userhub.alibong.model.User;
 import edu.bsit.userhub.alibong.repository.UserRepository;
+import edu.bsit.userhub.alibong.security.PasswordHasher;
+import edu.bsit.userhub.alibong.security.SessionStore;
 
 @Service
 public class UserService {
-    private final UserRepository userRepository;
-    private final Map<String, Long> sessions = new ConcurrentHashMap<>();
 
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    private static final String BEARER = "Bearer ";
+
+    private final UserRepository repo;
+    private final PasswordHasher hasher;
+    private final SessionStore sessions;
+
+    public UserService(UserRepository repo, PasswordHasher hasher, SessionStore sessions) {
+        this.repo = repo;
+        this.hasher = hasher;
+        this.sessions = sessions;
     }
 
     public UserResponse register(RegisterRequest req) {
-        if (userRepository.existsByEmail(req.email()))
-            throw new IllegalArgumentException("Email is already used");
-        User user = new User();
-        user.setFullName(req.fullName());
-        user.setEmail(req.email());
-        user.setPassword(hash(req.password()));
-        return toResponse(userRepository.save(user));
-    }
-
-    private String hash(String raw) {
-        try {
-            byte[] d = MessageDigest.getInstance("SHA-256")
-                    .digest(raw.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(d);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+        String email = normalize(req.email());
+        if (repo.existsByEmail(email)) {
+            throw new ConflictException("Email already used");
         }
-    }
-
-    private UserResponse toResponse(User user) {
-        return new UserResponse(user.getId(), user.getFullName(), user.getEmail(), user.getRole());
+        User user = new User(req.fullName().trim(), email,
+                hasher.hash(req.password()), Role.USER);
+        return UserResponse.from(repo.save(user));
     }
 
     public LoginResponse login(LoginRequest req) {
-        User user = userRepository.findByEmail(req.email())
-                .orElseThrow(() -> new AuthException("Invalid email or password"));
-        if (!user.getPassword().equals(hash(req.password())))
-            throw new AuthException("Invalid email or password");
-        String token = UUID.randomUUID().toString();
-        sessions.put(token, user.getId());
-        return new LoginResponse(token, toResponse(user));
+        if (req.email() == null || req.password() == null) {
+            throw new AuthException("Invalid credentials");
+        }
+        // same error for wrong email and wrong password
+        User user = repo.findByEmail(normalize(req.email()))
+                .filter(u -> hasher.matches(req.password(), u.getPasswordHash()))
+                .orElseThrow(() -> new AuthException("Invalid credentials"));
+
+        String token = sessions.create(user.getId());
+        return new LoginResponse(token, UserResponse.from(user));
     }
 
     public User authenticate(String header) {
-        if (header == null)
-            throw new AuthException("Please login");
-        Long id = sessions.get(header.replace("Bearer ", ""));
-        if (id == null)
-            throw new AuthException("Session expired, please login again");
-        return userRepository.findById(id).orElseThrow();
+        String token = extractToken(header);
+        Long userId = sessions.findUserId(token)
+                .orElseThrow(() -> new AuthException("Session expired"));
+        return repo.findById(userId)
+                .orElseThrow(() -> new AuthException("Session expired"));
+    }
+
+    public void logout(String header) {
+        if (header != null && !header.isBlank()) {
+            sessions.invalidate(extractToken(header));
+        }
+    }
+
+    public void requireRole(User user, Role required) {
+        if (!user.hasRole(required)) {
+            throw new ForbiddenException("Access denied");
+        }
     }
 
     public DashboardResponse dashboard(User user) {
-        return new DashboardResponse(user.getFullName(), user.getEmail(), user.getRole(),
-                user.getCreatedAt(), userRepository.count());
-    }
-
-    public void requireRole(User user, String role) {
-        if (!role.equals(user.getRole()))
-            throw new ForbiddenException("Access Denied");
+        return new DashboardResponse(user.getFullName(), user.getEmail(),
+                user.getRole(), user.getCreatedAt(), repo.count());
     }
 
     public List<UserResponse> findAll() {
-        return userRepository.findAll().stream().map(this::toResponse).toList();
+        return repo.findAllByOrderByIdAsc().stream()
+                .map(UserResponse::from)
+                .toList();
     }
 
+    public UserResponse updateProfile(User user, UpdateProfileRequest req) {
+        user.rename(req.fullName());
+        return UserResponse.from(repo.save(user));
+    }
+
+    public void seedAdmin(String fullName, String email, String rawPassword) {
+        String normalized = normalize(email);
+        if (repo.existsByEmail(normalized))
+            return;
+        repo.save(new User(fullName, normalized, hasher.hash(rawPassword), Role.ADMIN));
+    }
+
+    private String extractToken(String header) {
+        if (header == null || header.isBlank()) {
+            throw new AuthException("Please log in");
+        }
+        return header.startsWith(BEARER)
+                ? header.substring(BEARER.length()).trim()
+                : header.trim();
+    }
+
+    private String normalize(String email) {
+        return email == null ? null : email.trim().toLowerCase();
+    }
 }

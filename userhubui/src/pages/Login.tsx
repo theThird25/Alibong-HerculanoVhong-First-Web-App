@@ -1,38 +1,57 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom';
+import type { ChangeEvent, FormEvent } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../api/client";
+import { saveSession } from "../auth/session";
+import { Button, Card, ErrorText, MutedText, PageLink, TextInput } from "../components/ui";
+import type { LoginForm, LoginResponse } from "../types";
 
-const Login = () => {
- const [form, setForm] = useState({ email: '', password: ''});
- const [error, setError] = useState('')
- const navigate = useNavigate();
- const onChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
- const onSubmit = async (e) => {
+export default function Login() {
+    const [form, setForm] = useState<LoginForm>({ email: "", password: "" });
+    const [error, setError] = useState<string>("");
+    const navigate = useNavigate();
+
+    const onChange = (e: ChangeEvent<HTMLInputElement>) =>
+        setForm({ ...form, [e.target.name]: e.target.value });
+
+    const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        setError("");
         try {
-            const { data } = await api.post('/auth/login', form);
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            navigate('/dashboard');
+        const { data } = await api.post<LoginResponse>("/auth/login", form);
+        saveSession(data.token, data.user);
+        navigate("/dashboard");
         } catch {
-            setError('Invalid email or password');
+        setError("Invalid email or password");
         }
     };
 
     return (
-        <form onSubmit={onSubmit} className="card">
-            <h2>Login</h2>
-            <input name="email" type="email"placeholder="Email"
-                value={form.email} onChange={onChange} required />
-            <input name="password" placeholder="Password"
-                value={form.password} onChange={onChange} required />
-            {error && <p className="error">{error}</p>}
-            <button type="submit">Login</button>
-            <p>Don't have an account? <Link to="/register">Register</Link></p>
+        <Card>
+        <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
+            <h2 className="text-xl font-bold">Log in</h2>
+            <TextInput
+            name="email"
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={onChange}
+            required
+            />
+            <TextInput
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={onChange}
+            required
+            />
+            {error && <ErrorText>{error}</ErrorText>}
+            <Button type="submit">Log in</Button>
+            <MutedText>
+            No account yet? <PageLink to="/register">Register</PageLink>
+            </MutedText>
         </form>
-    )
+        </Card>
+    );
 }
-
-
-
-export default Login

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import edu.bsit.userhub.alibong.dto.DashboardResponse;
 import edu.bsit.userhub.alibong.dto.UserResponse;
+import edu.bsit.userhub.alibong.model.Role;
 import edu.bsit.userhub.alibong.service.UserService;
 
 @RestController
@@ -18,23 +19,23 @@ import edu.bsit.userhub.alibong.service.UserService;
 public class DashboardController {
 
     private static final String AUTH = "Authorization";
-    private final UserService userService;
 
-    public DashboardController(UserService userService) {
-        this.userService = userService;
+    private final UserService service;
+
+    public DashboardController(UserService service) {
+        this.service = service;
     }
 
     @GetMapping
     public DashboardResponse home(
             @RequestHeader(value = AUTH, required = false) String token) {
-        return userService.dashboard(userService.authenticate(token));
+        return service.dashboard(service.authenticate(token));
     }
 
-    @GetMapping("/users")
+    @GetMapping("/users") // ADMIN only
     public List<UserResponse> users(
             @RequestHeader(value = AUTH, required = false) String token) {
-        userService.requireRole(userService.authenticate(token), "ADMIN");
-        return userService.findAll();
+        service.requireRole(service.authenticate(token), Role.ADMIN);
+        return service.findAll();
     }
-
 }

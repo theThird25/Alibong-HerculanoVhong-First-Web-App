@@ -1,20 +1,19 @@
-import React from 'react'
-import { Navigate } from 'react-router';
+import type { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
+import { getToken, getUser } from "../auth/session";
+import type { Role } from "../types";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
-  role?: string;
+  children: ReactNode;
+  role?: Role;
 }
 
-const ProtectedRoute = ({ children, role }: ProtectedRouteProps) => {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+export default function ProtectedRoute({ children, role }: ProtectedRouteProps) {
+  const token = getToken();
+  const user = getUser();
 
-  if (!token) return <Navigate to='/login' replace />;
-  if (role && user?.role !== role)
-    return <Navigate to='/dashboard' replace />;
+  if (!token) return <Navigate to="/login" replace />;
+  if (role && user?.role !== role) return <Navigate to="/dashboard" replace />;
 
-  return children;
+  return <>{children}</>;
 }
-
-export default ProtectedRoute
